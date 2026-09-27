@@ -1419,180 +1419,187 @@ st.divider()
 
 # =========================================================
 
-# 비용 대비 효과
+# 비용 대비 효과 분석 (4분면 Pay-Off Matrix)
 
 # =========================================================
 
-st.subheader(
+st.subheader("💡 비용 대비 효과 분석 (Pay-Off Matrix)")
 
-    "💡 비용 대비 효과 매트릭스"
+payoff_df = fdf.copy()
 
+# 4분면 기준선은 현재 필터 결과의 중앙값을 사용합니다.
+x_mid = float(payoff_df["예상비용(원)"].median())
+y_mid = float(payoff_df["연간기대절감액(원)"].median())
+
+def classify_quadrant(cost, saving):
+    if cost <= x_mid and saving >= y_mid:
+        return "Quick Win"
+    if cost > x_mid and saving >= y_mid:
+        return "Major Project"
+    if cost <= x_mid and saving < y_mid:
+        return "Fill-ins"
+    return "재검토 필요"
+
+payoff_df["사분면"] = payoff_df.apply(
+    lambda row: classify_quadrant(
+        row["예상비용(원)"],
+        row["연간기대절감액(원)"],
+    ),
+    axis=1,
 )
 
-
-chart_df = fdf.copy()
-
-
-chart_df["_버블크기"] = (
-
-    chart_df["연간기대절감액(원)"]
-
-    .fillna(0)
-
-    .clip(lower=0)
-
+fig1 = px.scatter(
+    payoff_df,
+    x="예상비용(원)",
+    y="연간기대절감액(원)",
+    color="시급성",
+    size="우선순위점수",
+    hover_name="교육명",
+    hover_data={
+        "대상부서": True,
+        "예상비용(원)": ":,.0f",
+        "연간기대절감액(원)": ":,.0f",
+        "ROI(배)": ":.1f",
+        "우선순위점수": ":.0f",
+        "사분면": True,
+    },
+    size_max=34,
+    color_discrete_map={
+        "상": "#e74c3c",
+        "중": "#f39c12",
+        "하": "#95a5a6",
+    },
 )
 
-
-use_bubble = (
-
-    chart_df["_버블크기"].max()
-
-    > 0
-
+# 중앙값 기준 4분면선
+fig1.add_vline(
+    x=x_mid,
+    line_width=1.5,
+    line_dash="dash",
+    line_color="gray",
 )
 
+fig1.add_hline(
+    y=y_mid,
+    line_width=1.5,
+    line_dash="dash",
+    line_color="gray",
+)
 
-if use_bubble:
+# 사분면 라벨 배치를 위한 축 범위 계산
+x_min = float(payoff_df["예상비용(원)"].min())
+x_max = float(payoff_df["예상비용(원)"].max())
+y_min = float(payoff_df["연간기대절감액(원)"].min())
+y_max = float(payoff_df["연간기대절감액(원)"].max())
 
+x_pad = max((x_max - x_min) * 0.08, 1.0)
+y_pad = max((y_max - y_min) * 0.10, 1.0)
 
-    fig1 = px.scatter(
+plot_x_min = max(0.0, x_min - x_pad)
+plot_x_max = x_max + x_pad
+plot_y_min = max(0.0, y_min - y_pad)
+plot_y_max = y_max + y_pad
 
-        chart_df,
+x_left_label = plot_x_min + (x_mid - plot_x_min) * 0.07
+x_right_label = x_mid + (plot_x_max - x_mid) * 0.07
+y_top_label = y_mid + (plot_y_max - y_mid) * 0.86
+y_bottom_label = plot_y_min + (y_mid - plot_y_min) * 0.12
 
-        x="예상비용(원)",
+quadrant_annotations = [
+    (x_left_label, y_top_label, "① Quick Win<br>저비용 · 고효과"),
+    (x_right_label, y_top_label, "② Major Project<br>고비용 · 고효과"),
+    (x_left_label, y_bottom_label, "③ Fill-ins<br>저비용 · 저효과"),
+    (x_right_label, y_bottom_label, "④ 재검토 필요<br>고비용 · 저효과"),
+]
 
-        y="예상효과수치(%)",
-
-        size="_버블크기",
-
-        color="시급성",
-
-        hover_name="교육명",
-
-        hover_data={
-
-            "예상기간(일)": True,
-
-            "ROI(배)": True,
-
-            "대상부서": True,
-
-            "_버블크기": False,
-
-        },
-
-        size_max=48,
-
-        color_discrete_map={
-
-            "상": "#e74c3c",
-
-            "중": "#f39c12",
-
-            "하": "#95a5a6",
-
-        },
-
+for x_pos, y_pos, label in quadrant_annotations:
+    fig1.add_annotation(
+        x=x_pos,
+        y=y_pos,
+        text=label,
+        showarrow=False,
+        align="left",
+        xanchor="left",
+        font=dict(size=11, color="#34495e"),
+        bgcolor="rgba(255,255,255,0.78)",
+        bordercolor="rgba(180,180,180,0.35)",
+        borderwidth=1,
+        borderpad=4,
     )
-
-
-else:
-
-
-    fig1 = px.scatter(
-
-        chart_df,
-
-        x="예상비용(원)",
-
-        y="예상효과수치(%)",
-
-        color="시급성",
-
-        hover_name="교육명",
-
-        color_discrete_map={
-
-            "상": "#e74c3c",
-
-            "중": "#f39c12",
-
-            "하": "#95a5a6",
-
-        },
-
-    )
-
 
 fig1.update_layout(
-
-    xaxis_title="예상 비용(원)",
-
-    yaxis_title="예상 효과(%)",
-
-
-    # 세로 PDF에 맞게 높이 축소
-
-    height=360,
-
-
+    xaxis_title="예상 투자비용 (원)",
+    yaxis_title="연간 기대절감액 (원)",
+    height=500,
     autosize=True,
-
-
     margin=dict(
-
-        l=45,
-
-        r=15,
-
-        t=15,
-
-        b=45,
-
+        l=60,
+        r=30,
+        t=35,
+        b=55,
     ),
-
-
     legend=dict(
-
+        title="시급성",
         orientation="h",
-
         yanchor="bottom",
-
         y=1.02,
-
         xanchor="left",
-
         x=0,
-
     ),
-
 )
-
 
 fig1.update_xaxes(
-
-    tickformat=","
-
+    tickformat=",",
+    range=[plot_x_min, plot_x_max],
 )
 
+fig1.update_yaxes(
+    tickformat=",",
+    range=[plot_y_min, plot_y_max],
+)
 
 st.plotly_chart(
-
     fig1,
-
     use_container_width=True,
-
     config={
-
         "displayModeBar": False,
-
         "responsive": True,
-
     },
-
 )
 
+st.markdown("#### 💡 사분면별 의사결정 가이드")
+
+q1, q2, q3, q4 = st.columns(4)
+
+with q1:
+    st.markdown(
+        "**① Quick Win**  \n"
+        "저비용 · 고효과  \n"
+        "→ 우선 검토 및 빠른 실행"
+    )
+
+with q2:
+    st.markdown(
+        "**② Major Project**  \n"
+        "고비용 · 고효과  \n"
+        "→ 예산 확보 후 전략적 추진"
+    )
+
+with q3:
+    st.markdown(
+        "**③ Fill-ins**  \n"
+        "저비용 · 저효과  \n"
+        "→ 여유 자원 범위 내 보완"
+    )
+
+with q4:
+    st.markdown(
+        "**④ 재검토 필요**  \n"
+        "고비용 · 저효과  \n"
+        "→ 대상·방식·범위 재설계"
+    )
+
+st.divider()
 
 # =========================================================
 
@@ -1601,173 +1608,91 @@ st.plotly_chart(
 # =========================================================
 
 st.subheader(
-
     "🏆 우선순위 상위 교육"
-
 )
 
+top_n = min(5, len(fdf))
 
-max_top_n = len(fdf)
-
-
-if max_top_n <= 1:
-
-
-    top_n = 1
-
-
-else:
-
-
-    top_n = st.slider(
-
-        "표시할 상위 교육 수",
-
-        min_value=1,
-
-        max_value=max_top_n,
-
-        value=min(
-
-            5,
-
-            max_top_n
-
-        ),
-
-        step=1,
-
-    )
-
+# 이 영역은 ROI가 아니라 종합 우선순위점수를 사용하여
+# 앞의 비용 대비 효과 차트와 역할이 겹치지 않도록 구성
+# ---------------------------------------------------------
 
 top_df = (
-
     fdf.sort_values(
-
         "우선순위점수",
-
         ascending=False,
-
     )
-
     .head(top_n)
-
     .copy()
-
 )
 
-
-fig2 = px.bar(
-
+fig_priority = px.bar(
     top_df.sort_values(
-
-        "우선순위점수"
-
+        "우선순위점수",
+        ascending=True,
     ),
-
-
-    x="ROI(배)",
-
+    x="우선순위점수",
     y="교육명",
-
-
     orientation="h",
-
-
     color="시급성",
-
-
-    text="ROI(배)",
-
-
-    color_discrete_map={
-
-        "상": "#e74c3c",
-
-        "중": "#f39c12",
-
-        "하": "#95a5a6",
-
+    text="우선순위점수",
+    hover_data={
+        "ROI(배)": ":.1f",
+        "예상비용(원)": ":,.0f",
+        "연간기대절감액(원)": ":,.0f",
     },
-
+    color_discrete_map={
+        "상": "#e74c3c",
+        "중": "#f39c12",
+        "하": "#95a5a6",
+    },
 )
 
+fig_priority.update_traces(
+    texttemplate="%{x:.0f}점",
+    textposition="outside",
+    cliponaxis=False,
+)
 
-fig2.update_layout(
-
-    xaxis_title="ROI(배)",
-
+fig_priority.update_layout(
+    xaxis_title="우선순위점수 (점)",
     yaxis_title="",
-
-
     height=max(
-
         280,
-
-        48 * len(top_df),
-
+        50 * len(top_df),
     ),
-
-
     autosize=True,
-
-
     margin=dict(
-
         l=40,
-
-        r=15,
-
+        r=60,
         t=15,
-
         b=40,
-
     ),
-
-
     legend=dict(
-
+        title="시급성",
         orientation="h",
-
         yanchor="bottom",
-
         y=1.02,
-
         xanchor="left",
-
         x=0,
-
     ),
-
 )
 
-
-fig2.update_traces(
-
-    textposition="outside"
-
+fig_priority.update_xaxes(
+    tickformat=".0f",
+    rangemode="tozero",
 )
-
 
 st.plotly_chart(
-
-    fig2,
-
+    fig_priority,
     use_container_width=True,
-
     config={
-
         "displayModeBar": False,
-
         "responsive": True,
-
     },
-
 )
 
-
 st.divider()
-
 
 # =========================================================
 
@@ -1975,166 +1900,167 @@ else:
 
     # -----------------------------------------------------
 
-    # 강사 비교 차트
+    # 사내강사 vs 외부위탁 비용 비교 차트
 
     # -----------------------------------------------------
 
-    instructor_chart_df = idf.copy()
+    compare_df = idf[
+
+        [
+
+            "교육명",
+
+            "사내강사활용시예상비용(원)",
+
+            "외부위탁시예상비용(원)",
+
+            "추천강사유형",
+
+            "사내강사전문성매칭점수",
+
+        ]
+
+    ].copy()
 
 
-    if "대상인원수" in instructor_chart_df.columns:
+    # 전문성 매칭점수가 높은 교육부터 정렬
 
+    compare_df = compare_df.sort_values(
 
-        instructor_chart_df[
+        "사내강사전문성매칭점수",
 
-            "_대상인원버블"
-
-        ] = (
-
-            instructor_chart_df[
-
-                "대상인원수"
-
-            ]
-
-            .fillna(1)
-
-            .clip(lower=1)
-
-        )
-
-
-        fig3 = px.scatter(
-
-            instructor_chart_df,
-
-
-            x="사내강사전문성매칭점수",
-
-            y="비용차이(외부-사내, 원)",
-
-
-            color="추천강사유형",
-
-
-            size="_대상인원버블",
-
-
-            hover_name="교육명",
-
-
-            size_max=40,
-
-
-            color_discrete_map={
-
-                "사내": "#2ecc71",
-
-                "외부": "#3498db",
-
-                "혼합": "#f1c40f",
-
-                "미정": "#95a5a6",
-
-            },
-
-        )
-
-
-    else:
-
-
-        fig3 = px.scatter(
-
-            instructor_chart_df,
-
-
-            x="사내강사전문성매칭점수",
-
-            y="비용차이(외부-사내, 원)",
-
-
-            color="추천강사유형",
-
-
-            hover_name="교육명",
-
-
-            color_discrete_map={
-
-                "사내": "#2ecc71",
-
-                "외부": "#3498db",
-
-                "혼합": "#f1c40f",
-
-                "미정": "#95a5a6",
-
-            },
-
-        )
-
-
-    fig3.add_vline(
-
-        x=40,
-
-        line_dash="dash",
-
-        line_color="gray",
+        ascending=False,
 
     )
 
 
-    fig3.add_vline(
+    compare_long = compare_df.melt(
 
-        x=70,
+        id_vars=[
 
-        line_dash="dash",
+            "교육명",
 
-        line_color="gray",
+            "추천강사유형",
+
+            "사내강사전문성매칭점수",
+
+        ],
+
+        value_vars=[
+
+            "사내강사활용시예상비용(원)",
+
+            "외부위탁시예상비용(원)",
+
+        ],
+
+        var_name="비용유형",
+
+        value_name="비용(원)",
 
     )
 
 
-    fig3.add_hline(
+    compare_long["비용유형"] = compare_long["비용유형"].replace(
 
-        y=0,
+        {
 
-        line_dash="dot",
+            "사내강사활용시예상비용(원)": "사내강사",
 
-        line_color="gray",
+            "외부위탁시예상비용(원)": "외부위탁",
+
+        }
+
+    )
+
+
+    fig3 = px.bar(
+
+        compare_long,
+
+        x="비용(원)",
+
+        y="교육명",
+
+        color="비용유형",
+
+        barmode="group",
+
+        orientation="h",
+
+        text="비용(원)",
+
+        hover_data={
+
+            "사내강사전문성매칭점수": True,
+
+            "추천강사유형": True,
+
+            "비용(원)": ":,.0f",
+
+        },
+
+        category_orders={
+
+            "교육명": compare_df["교육명"].tolist(),
+
+            "비용유형": ["사내강사", "외부위탁"],
+
+        },
+
+        color_discrete_map={
+
+            "사내강사": "#2ecc71",
+
+            "외부위탁": "#3498db",
+
+        },
+
+    )
+
+
+    fig3.update_traces(
+
+        texttemplate="%{x:,.0f}원",
+
+        textposition="outside",
+
+        cliponaxis=False,
 
     )
 
 
     fig3.update_layout(
 
-        xaxis_title="사내강사 전문성 매칭점수 (점)",
+        xaxis_title="예상 비용 (원)",
 
-        yaxis_title="외부비용 - 사내비용 (원)",
+        yaxis_title="",
 
+        height=max(
 
-        height=340,
+            420,
 
-
-        autosize=True,
-
-
-        margin=dict(
-
-            l=50,
-
-            r=15,
-
-            t=15,
-
-            b=45,
+            52 * compare_df["교육명"].nunique(),
 
         ),
 
+        autosize=True,
+
+        margin=dict(
+
+            l=40,
+
+            r=110,
+
+            t=20,
+
+            b=40,
+
+        ),
 
         legend=dict(
+
+            title="비용 구분",
 
             orientation="h",
 
@@ -2151,16 +2077,9 @@ else:
     )
 
 
-    fig3.update_yaxes(
-
-        tickformat=","
-
-    )
-
-
     fig3.update_xaxes(
 
-        tickformat=".0f"
+        tickformat=",",
 
     )
 
