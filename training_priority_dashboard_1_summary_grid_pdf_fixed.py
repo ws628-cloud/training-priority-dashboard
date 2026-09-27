@@ -16,6 +16,10 @@
 """
 
 
+import html
+
+from textwrap import dedent
+
 import pandas as pd
 
 import numpy as np
@@ -1421,6 +1425,190 @@ st.divider()
 
 # =========================================================
 
+# 요약
+
+# =========================================================
+
+st.subheader("📝 요약")
+
+
+best = (
+    fdf.sort_values(
+        "우선순위점수",
+        ascending=False,
+    )
+    .iloc[0]
+)
+
+
+education_name = best.get("교육명", "-")
+reason = best.get("근거요약", "근거 데이터 확인 필요")
+priority_score = best.get("우선순위점수", np.nan)
+cost = best.get("예상비용(원)", np.nan)
+days = best.get("예상기간(일)", np.nan)
+effect_type = best.get("예상효과유형", "예상 효과")
+effect_value = best.get("예상효과수치(%)", np.nan)
+saving = best.get("연간기대절감액(원)", np.nan)
+roi = best.get("ROI(배)", np.nan)
+payback = best.get("투자회수기간(개월)", np.nan)
+
+
+def format_won_brief(value):
+    if pd.isna(value):
+        return "-"
+
+    value = float(value)
+
+    if value >= 100_000_000:
+        eok = value / 100_000_000
+        return f"{eok:.1f}억 원"
+
+    if value >= 10_000:
+        man = value / 10_000
+        return f"{man:,.0f}만 원"
+
+    return f"{value:,.0f}원"
+
+
+priority_text = (
+    f"{priority_score:.0f}점"
+    if pd.notna(priority_score)
+    else "-"
+)
+
+cost_text = format_won_brief(cost)
+saving_text = format_won_brief(saving)
+
+days_text = (
+    f"{days:g}일"
+    if pd.notna(days)
+    else "-"
+)
+
+effect_text = (
+    f"{effect_value:g}%"
+    if pd.notna(effect_value)
+    else "-"
+)
+
+roi_text = (
+    f"{roi:.1f}배"
+    if pd.notna(roi)
+    else "-"
+)
+
+payback_text = (
+    f"{payback:.1f}개월"
+    if pd.notna(payback)
+    else "-"
+)
+
+
+# 요약 영역: 동일 크기의 2열 x 2행 카드 그리드
+summary_reason = html.escape(str(reason))
+summary_education = html.escape(str(education_name))
+summary_effect_type = html.escape(str(effect_type))
+
+summary_style = """
+<style>
+.exec-summary-head{background:#eaf3ff;border:1px solid #d8e8fb;border-radius:12px;padding:16px 20px;margin:4px 0 14px 0;font-size:20px;line-height:1.45;color:#0b5cad;font-weight:700;box-sizing:border-box;}
+.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,132px);gap:14px;width:100%;margin:0 0 6px 0;}
+.summary-card{background:#f8fafc;border:1px solid #d9e1ea;border-radius:12px;padding:18px 20px;height:132px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;}
+.summary-card-title{font-size:18px;line-height:1.25;font-weight:700;color:#334155;margin:0 0 11px 0;}
+.summary-card-body{font-size:17px;line-height:1.55;color:#1f2937;word-break:keep-all;overflow-wrap:break-word;}
+.summary-card-body strong{font-weight:700;color:#111827;}
+@media screen and (max-width:800px){
+    .summary-grid{
+        grid-template-columns:1fr;
+        grid-template-rows:none;
+    }
+    .summary-card{
+        height:auto;
+        min-height:118px;
+    }
+}
+
+@media print{
+    .exec-summary-head{
+        width:100% !important;
+        box-sizing:border-box !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
+    }
+
+    .summary-grid{
+        display:grid !important;
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-template-rows:repeat(2,132px) !important;
+        gap:14px !important;
+        width:100% !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
+    }
+
+    .summary-card{
+        display:flex !important;
+        height:132px !important;
+        min-height:132px !important;
+        max-height:132px !important;
+        box-sizing:border-box !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
+    }
+}
+</style>
+"""
+
+st.markdown(
+    summary_style,
+    unsafe_allow_html=True,
+)
+
+summary_header_html = (
+    f'<div class="exec-summary-head">'
+    f'우선 검토 교육 | {summary_education} &nbsp;·&nbsp; 우선순위 {priority_text}'
+    f'</div>'
+)
+
+st.markdown(
+    summary_header_html,
+    unsafe_allow_html=True,
+)
+
+summary_cards_html = (
+    '<div class="summary-grid">'
+    '<div class="summary-card">'
+    '<div class="summary-card-title">선정 이유</div>'
+    f'<div class="summary-card-body">{summary_reason}</div>'
+    '</div>'
+    '<div class="summary-card">'
+    '<div class="summary-card-title">기대 효과</div>'
+    f'<div class="summary-card-body">{summary_effect_type} <strong>{effect_text}</strong><br>'
+    f'연간 <strong>{saving_text}</strong> 절감 예상</div>'
+    '</div>'
+    '<div class="summary-card">'
+    '<div class="summary-card-title">예상 투자</div>'
+    f'<div class="summary-card-body"><strong>{cost_text}</strong> · 교육기간 {days_text}</div>'
+    '</div>'
+    '<div class="summary-card">'
+    '<div class="summary-card-title">경제성</div>'
+    f'<div class="summary-card-body">투자 대비 <strong>{roi_text}</strong> 효과<br>'
+    f'약 <strong>{payback_text}</strong> 내 비용 회수 예상</div>'
+    '</div>'
+    '</div>'
+)
+
+st.markdown(
+    summary_cards_html,
+    unsafe_allow_html=True,
+)
+
+
+st.divider()
+
+
+# =========================================================
+
 # 비용 대비 효과 분석 (4분면 Pay-Off Matrix)
 
 # =========================================================
@@ -1998,106 +2186,6 @@ else:
 
     # -----------------------------------------------------
 
-    # 사내강사 활용 권장 강좌
-
-    # -----------------------------------------------------
-
-    internal_recommended = idf[
-        (idf["사내강사전문성매칭점수"] >= 70)
-        &
-        (
-            idf["사내강사활용시예상비용(원)"]
-            <
-            idf["외부위탁시예상비용(원)"]
-        )
-    ].copy()
-
-    internal_recommended["절감 예상액(원)"] = (
-        internal_recommended["외부위탁시예상비용(원)"]
-        - internal_recommended["사내강사활용시예상비용(원)"]
-    )
-
-    def build_internal_reason(row):
-        base_reason = str(row.get("근거요약", "")).strip()
-        score = row.get("사내강사전문성매칭점수", np.nan)
-        saving = row.get("절감 예상액(원)", np.nan)
-
-        reason_parts = []
-
-        if base_reason and base_reason.lower() != "nan":
-            reason_parts.append(base_reason)
-
-        if pd.notna(score):
-            reason_parts.append(f"사내강사 전문성 매칭점수 {score:.0f}점")
-
-        if pd.notna(saving):
-            reason_parts.append(f"외부위탁 대비 {saving:,.0f}원 절감 예상")
-
-        return " · ".join(reason_parts)
-
-    internal_recommended["근거 및 이유"] = (
-        internal_recommended
-        .apply(
-            build_internal_reason,
-            axis=1,
-        )
-    )
-
-    internal_recommended = (
-        internal_recommended
-        .sort_values(
-            [
-                "사내강사전문성매칭점수",
-                "절감 예상액(원)",
-            ],
-            ascending=[False, False],
-        )
-        .reset_index(drop=True)
-    )
-
-    st.markdown(
-        f"### ✅ 사내강사 활용 권장 강좌 {len(internal_recommended)}건"
-    )
-
-    recommended_table = internal_recommended[
-        [
-            "교육명",
-            "사내강사전문성매칭점수",
-            "사내강사활용시예상비용(원)",
-            "외부위탁시예상비용(원)",
-            "절감 예상액(원)",
-            "근거 및 이유",
-        ]
-    ].copy()
-
-    for money_col in [
-        "사내강사활용시예상비용(원)",
-        "외부위탁시예상비용(원)",
-        "절감 예상액(원)",
-    ]:
-        recommended_table[money_col] = (
-            recommended_table[money_col]
-            .apply(
-                lambda x: f"{x:,.0f}" if pd.notna(x) else "-"
-            )
-        )
-
-    recommended_table["사내강사전문성매칭점수"] = (
-        recommended_table["사내강사전문성매칭점수"]
-        .apply(
-            lambda x: f"{x:.0f}점" if pd.notna(x) else "-"
-        )
-    )
-
-    st.dataframe(
-        recommended_table,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-
-    # -----------------------------------------------------
-
     # 강사 비교 표
 
     # -----------------------------------------------------
@@ -2307,203 +2395,3 @@ st.dataframe(
 
 )
 
-
-# =========================================================
-
-# 경영진 자동 요약
-
-# =========================================================
-
-st.subheader(
-
-    "📝 경영진 보고용 자동 요약"
-
-)
-
-
-best = (
-
-    fdf.sort_values(
-
-        "우선순위점수",
-
-        ascending=False,
-
-    )
-
-    .iloc[0]
-
-)
-
-
-education_name = best.get(
-
-    "교육명",
-
-    "-"
-
-)
-
-
-reason = best.get(
-
-    "근거요약",
-
-    "근거 데이터 확인 필요"
-
-)
-
-
-cost = best.get(
-
-    "예상비용(원)",
-
-    np.nan
-
-)
-
-
-days = best.get(
-
-    "예상기간(일)",
-
-    np.nan
-
-)
-
-
-effect_type = best.get(
-
-    "예상효과유형",
-
-    "예상 효과"
-
-)
-
-
-effect_value = best.get(
-
-    "예상효과수치(%)",
-
-    np.nan
-
-)
-
-
-saving = best.get(
-
-    "연간기대절감액(원)",
-
-    np.nan
-
-)
-
-
-roi = best.get(
-
-    "ROI(배)",
-
-    np.nan
-
-)
-
-
-payback = best.get(
-
-    "투자회수기간(개월)",
-
-    np.nan
-
-)
-
-
-cost_text = (
-
-    f"{cost / 100_000_000:.2f}억 원"
-
-    if pd.notna(cost)
-
-    else "-"
-
-)
-
-
-days_text = (
-
-    f"{days:g}일"
-
-    if pd.notna(days)
-
-    else "-"
-
-)
-
-
-effect_text = (
-
-    f"{effect_value:g}%"
-
-    if pd.notna(effect_value)
-
-    else "-"
-
-)
-
-
-saving_text = (
-
-    f"{saving / 100_000_000:.2f}억 원"
-
-    if pd.notna(saving)
-
-    else "-"
-
-)
-
-
-roi_text = (
-
-    f"{roi:.1f}배"
-
-    if pd.notna(roi)
-
-    else "-"
-
-)
-
-
-payback_text = (
-
-    f"{payback:.1f}개월"
-
-    if pd.notna(payback)
-
-    else "-"
-
-)
-
-
-st.info(
-
-    f"""
-
-**최우선 추천: {education_name}**
-
-
-- **근거:** {reason}
-
-- **예상 비용:** {cost_text}
-
-- **예상 기간:** {days_text}
-
-- **기대 효과:** {effect_type} {effect_text}
-
-- **연간 기대 절감액:** {saving_text}
-
-- **ROI:** {roi_text}
-
-- **투자 회수기간:** {payback_text}
-
-"""
-
-)
