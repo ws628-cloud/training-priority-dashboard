@@ -1998,7 +1998,103 @@ else:
 
     # -----------------------------------------------------
 
-    
+    # 사내강사 활용 권장 강좌
+
+    # -----------------------------------------------------
+
+    internal_recommended = idf[
+        (idf["사내강사전문성매칭점수"] >= 70)
+        &
+        (
+            idf["사내강사활용시예상비용(원)"]
+            <
+            idf["외부위탁시예상비용(원)"]
+        )
+    ].copy()
+
+    internal_recommended["절감 예상액(원)"] = (
+        internal_recommended["외부위탁시예상비용(원)"]
+        - internal_recommended["사내강사활용시예상비용(원)"]
+    )
+
+    def build_internal_reason(row):
+        base_reason = str(row.get("근거요약", "")).strip()
+        score = row.get("사내강사전문성매칭점수", np.nan)
+        saving = row.get("절감 예상액(원)", np.nan)
+
+        reason_parts = []
+
+        if base_reason and base_reason.lower() != "nan":
+            reason_parts.append(base_reason)
+
+        if pd.notna(score):
+            reason_parts.append(f"사내강사 전문성 매칭점수 {score:.0f}점")
+
+        if pd.notna(saving):
+            reason_parts.append(f"외부위탁 대비 {saving:,.0f}원 절감 예상")
+
+        return " · ".join(reason_parts)
+
+    internal_recommended["근거 및 이유"] = (
+        internal_recommended
+        .apply(
+            build_internal_reason,
+            axis=1,
+        )
+    )
+
+    internal_recommended = (
+        internal_recommended
+        .sort_values(
+            [
+                "사내강사전문성매칭점수",
+                "절감 예상액(원)",
+            ],
+            ascending=[False, False],
+        )
+        .reset_index(drop=True)
+    )
+
+    st.markdown(
+        f"### ✅ 사내강사 활용 권장 강좌 {len(internal_recommended)}건"
+    )
+
+    recommended_table = internal_recommended[
+        [
+            "교육명",
+            "사내강사전문성매칭점수",
+            "사내강사활용시예상비용(원)",
+            "외부위탁시예상비용(원)",
+            "절감 예상액(원)",
+            "근거 및 이유",
+        ]
+    ].copy()
+
+    for money_col in [
+        "사내강사활용시예상비용(원)",
+        "외부위탁시예상비용(원)",
+        "절감 예상액(원)",
+    ]:
+        recommended_table[money_col] = (
+            recommended_table[money_col]
+            .apply(
+                lambda x: f"{x:,.0f}" if pd.notna(x) else "-"
+            )
+        )
+
+    recommended_table["사내강사전문성매칭점수"] = (
+        recommended_table["사내강사전문성매칭점수"]
+        .apply(
+            lambda x: f"{x:.0f}점" if pd.notna(x) else "-"
+        )
+    )
+
+    st.dataframe(
+        recommended_table,
+        use_container_width=True,
+        hide_index=True,
+    )
+
 
     # -----------------------------------------------------
 
