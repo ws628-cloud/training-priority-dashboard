@@ -2110,9 +2110,9 @@ else:
 
     fig3.update_layout(
 
-        xaxis_title="사내강사 전문성 매칭점수",
+        xaxis_title="사내강사 전문성 매칭점수 (점)",
 
-        yaxis_title="외부비용 - 사내비용",
+        yaxis_title="외부비용 - 사내비용 (원)",
 
 
         height=340,
@@ -2154,6 +2154,13 @@ else:
     fig3.update_yaxes(
 
         tickformat=","
+
+    )
+
+
+    fig3.update_xaxes(
+
+        tickformat=".0f"
 
     )
 
@@ -2234,9 +2241,34 @@ else:
     )
 
 
+    instructor_table_display = instructor_table.copy()
+
+
+    instructor_money_cols = [
+
+        "사내강사활용시예상비용(원)",
+
+        "외부위탁시예상비용(원)",
+
+        "비용차이(외부-사내, 원)",
+
+    ]
+
+
+    for col in instructor_money_cols:
+
+        if col in instructor_table_display.columns:
+
+            instructor_table_display[col] = instructor_table_display[col].apply(
+
+                lambda x: f"{x:,.0f}" if pd.notna(x) else "-"
+
+            )
+
+
     st.dataframe(
 
-        instructor_table,
+        instructor_table_display,
 
         use_container_width=True,
 
@@ -2326,9 +2358,32 @@ detail_df = (
 )
 
 
+detail_df_display = detail_df.copy()
+
+
+detail_money_cols = [
+
+    "예상비용(원)",
+
+    "연간기대절감액(원)",
+
+]
+
+
+for col in detail_money_cols:
+
+    if col in detail_df_display.columns:
+
+        detail_df_display[col] = detail_df_display[col].apply(
+
+            lambda x: f"{x:,.0f}" if pd.notna(x) else "-"
+
+        )
+
+
 st.dataframe(
 
-    detail_df,
+    detail_df_display,
 
     use_container_width=True,
 
